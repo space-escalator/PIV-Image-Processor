@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 def load_and_grayscale_image(filename):
-	img = cv2.imread('PIV_sample_cropped.jpg')
+	img = cv2.imread(filename)
 	img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 	return img
 
@@ -51,8 +51,6 @@ def isolate_particles(img, label_array, particle_count):
 
 	particle_images = []
 
-	# print(label_array[len(img)-100:len(img), len(img[0])-100:len(img[0])])
-
 	for i in range(1,particle_count+1):
 		coords = np.where(label_array == i)
 
@@ -91,7 +89,7 @@ def count_pixels(img):
 
 
 if __name__ == "__main__":
-	filename = 'PIV_sample_cropped.jpg'
+	filename = 'images/PIV_sample_cropped.jpg'
 	img = load_and_grayscale_image(filename)
 
 	thresholded_img = threshold(gauss_blur(img))
