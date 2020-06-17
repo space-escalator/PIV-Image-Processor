@@ -86,6 +86,52 @@ def count_pixels(img):
 
 	return count
 
+def find_external_corners(img):
+	# Given a binarized image, return a list of coordinates of all the exterior corner coordinates
+	external_corners = [] # Variable to return
+
+	lower_border = len(img)
+	right_border = len(img[0])
+
+	# Iterate through every vertex in the image and add it to the list if it only borders 1 white pixel
+	for y in range(lower_border+1):
+		for x in range(right_border+1):
+			# The vertex is at (y,x). (y,x) is also the pixel below and to the right of th vertex.
+			adjacent_white = 0
+			
+			# up left
+			if y != 0 and x != 0:
+				if img[y-1,x-1] != 0:
+					adjacent_white += 1
+			# up right
+			if y != 0 and x != right_border:
+				if img[y-1,x] != 0:
+					adjacent_white += 1
+			# down left
+			if y != lower_border and x != 0:
+				if img[y,x-1] != 0:
+					adjacent_white += 1
+			# down right
+			if y != lower_border and x != right_border:
+				if img[y,x] != 0:
+					adjacent_white += 1
+
+			if adjacent_white == 1:
+				external_corners.append([y,x])
+
+	return external_corners
+
+def plot_external_corners(img):
+	# Plot the external corners of the image as red crosses on top of the image
+	plt.imshow(img, 'gray', vmin=0, vmax=255, extent=(0,len(img[0]),len(img),0))
+	
+	corners = find_external_corners(img)
+	x = [i[1] for i in corners]
+	y = [i[0] for i in corners]
+
+	plt.scatter(x,y, c='r', marker='P', s=10)
+
+
 
 
 if __name__ == "__main__":
@@ -124,7 +170,8 @@ if __name__ == "__main__":
 
 	for i in range(len(particle_images)):
 		plt.subplot(grid_width, grid_width, i+1)
-		plt.imshow(particle_images[i], 'gray', vmin=0, vmax=255)
+		# plt.imshow(particle_images[i], 'gray', vmin=0, vmax=255)
+		plot_external_corners(particle_images[i])
 		plt.xticks([]),plt.yticks([])
 
 	quick_plot(current_img)
