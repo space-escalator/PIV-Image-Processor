@@ -1,7 +1,17 @@
+"""
+This is a small library of functions to count the particles in, and return statistics about, 
+PIV image particles, given an image.
+
+TODO: References
+"""
+
 import cv2
 from scipy import ndimage
 import numpy as np
 from matplotlib import pyplot as plt
+
+__author__ = "Aaron Goldfogel"
+__email__ = "aaron@goldfogel.space"
 
 def load_and_grayscale_image(filename):
 	img = cv2.imread(filename)
