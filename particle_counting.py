@@ -18,8 +18,57 @@ def load_and_grayscale_image(filename):
 	img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 	return img
 
+def load_and_grayscale_data(filename):
+	datalist = []
+	with open(filename) as reader:
+		in_header = True
+		for line in reader:
+			split_line = line.split()
+
+			# skip headers
+			if in_header:
+				in_header = False
+				if not all([str(word).strip('-').replace('.','').isnumeric() for word in split_line]):
+					in_header = True
+
+			if not in_header:
+				if not all([str(word).strip('-').replace('.','').isnumeric() for word in split_line]):
+					break
+					# This is a hack to ignore the second ZONE and I don't like it
+				# read every line into the list
+				datalist.append([float(i) for i in split_line])
+
+	pixel_width = datalist[1][0] - datalist[0][0] # Assumes pixels are square
+
+	number_of_columns = 0
+	for i in range(len(datalist)):
+		if datalist[i+1][1] < datalist[i][1]:
+			number_of_columns = i+1
+			break
+
+	number_of_rows = int(len(datalist) / number_of_columns)
+
+	img = np.zeros((number_of_rows, number_of_columns))
+	k = 0
+	for i in range(len(img)):
+		for j in range(len(img[i,:])):
+			img[i,j] = datalist[k][2]
+			k += 1
+
+	# Drop the floor to zero and mask anything above 255 to 255 to not lose low-level precision
+	img -= img.min()
+	# img /= (img.max()/255)
+	for i in range(len(img)):
+		for j in range(len(img[i])):
+			if img[i,j] > 255:
+				img[i,j] = 255
+
+	img = img.astype('uint8')
+
+	return img, pixel_width
+
 def gauss_blur(img):
-	return cv2.GaussianBlur(img, (5,5), 0)
+	return cv2.GaussianBlur(img, (3,3), 0)
 
 def threshold(img):
 	return cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, \
@@ -141,33 +190,67 @@ def plot_external_corners(img):
 
 	plt.scatter(x,y, c='r', marker='P', s=10)
 
+def count_to_diameter(count, pixel_width):
+	"""
+	Returns the diameter of a circle with the same area 
+	as [count] squares that are [pixel_width] wide
+	"""
+	area = count*(pixel_width**2)
+	return np.sqrt(area/np.pi)*2
 
 
 
-if __name__ == "__main__":
-	filename = 'images/PIV_sample_cropped.jpg'
-	img = load_and_grayscale_image(filename)
+
+if __name__ == '__main__':
+	filename = 'images/B00001.dat'
+	pixel_length_unit = 'mm'
+	# img = load_and_grayscale_image(filename) # This is for if the image is already an image
+	# pixel_width = 0.0001
+	img, pixel_width = load_and_grayscale_data(filename) # This is for if the image is a .dat file of xyz data
 
 	thresholded_img = threshold(gauss_blur(img))
 
 	label_array, particle_count = ndimage.label(thresholded_img)
 	particle_images = isolate_particles(thresholded_img, label_array, particle_count)
 	particle_pixel_counts = [count_pixels(i) for i in particle_images]
+	particle_diameters = [count_to_diameter(i, pixel_width) for i in particle_pixel_counts]
 	
+	unique_diameters = sorted(set(particle_diameters))
+	bin_width = max(unique_diameters)
+	for i in range(len(unique_diameters)-1):
+		bin_diff = unique_diameters[i+1]-unique_diameters[i]
+		if bin_width > bin_diff: bin_width = bin_diff
+	
+	bins = np.arange(0,max(unique_diameters),bin_width)
+
 	print('The image contains %d particles' % particle_count)
 	print(np.bincount(particle_pixel_counts))
+	
 	plt.figure()
-	plt.hist(particle_pixel_counts, bins=range(max(particle_pixel_counts)))
-	plt.title('Histogram of Pixels per Droplet')
-	plt.xlabel('Pixels in One Droplet')
+	plt.hist(particle_diameters, bins=bins, rwidth=.1)
+	plt.title('Particle Diameter Distribution | Total Particles: %d' %particle_count)
+	plt.xlabel('Diameter (%s)' %pixel_length_unit)
+	locs, labels = plt.yticks()
+	labels = ['%1.3f' %(float(i)/particle_count) for i in locs]
+	plt.yticks(locs, labels)
+	plt.ylabel('Normalized Particle Count')
 
-	# display_thresholding(img)
-	square_width = 100
+
+	plt.figure()
+	plt.hist(particle_diameters, bins=10)
+	plt.title('Particle Diameter Distribution | Total Particles: %d' %particle_count)
+	plt.xlabel('Diameter (%s)' %pixel_length_unit)
+	locs, labels = plt.yticks()
+	labels = ['%1.3f' %(float(i)/particle_count) for i in locs]
+	plt.yticks(locs, labels)
+	plt.ylabel('Normalized Particle Count')
+
+	display_thresholding(img)
+	square_width = 20
 	square_start_y = int(len(img)/2-square_width/2)
 	square_start_x = int(len(img[0])/2-square_width/2)
 	center_block_img = img[square_start_y:square_start_y+square_width, square_start_x:square_start_x+square_width]
-	# display_thresholding(center_block_img)
-	# plt.show()
+	display_thresholding(center_block_img)
 
 	
 	current_img = threshold(gauss_blur(center_block_img))
