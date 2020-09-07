@@ -246,7 +246,7 @@ if __name__ == '__main__':
 	plt.ylabel('Normalized Particle Count')
 
 	display_thresholding(img)
-	square_width = 20
+	square_width = 50
 	square_start_y = int(len(img)/2-square_width/2)
 	square_start_x = int(len(img[0])/2-square_width/2)
 	center_block_img = img[square_start_y:square_start_y+square_width, square_start_x:square_start_x+square_width]
