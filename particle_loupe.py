@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from scipy import ndimage
 import particle_counting
+from particle_batch_processor import sort_and_deduplicate
 
 from matplotlib import pyplot as plt
 
@@ -112,17 +113,24 @@ class Loupe(object):
 		label_array, particle_count = ndimage.label(thresholded_img)
 		particle_images = particle_counting.isolate_particles(thresholded_img, label_array, particle_count)
 		particle_pixel_counts = [particle_counting.count_pixels(i) for i in particle_images]
-		particle_diameters = [particle_counting.count_to_diameter(i, self._pixelLength) for i in particle_pixel_counts]
 
-		unique_diameters = sorted(set(particle_diameters))
-		bin_width = max(unique_diameters)
-		for i in range(len(unique_diameters)-1):
-			bin_diff = unique_diameters[i+1]-unique_diameters[i]
+		unique_pixel_counts = sort_and_deduplicate(particle_pixel_counts)
+		bin_width = max(unique_pixel_counts)
+		for i in range(len(unique_pixel_counts)-1):
+			bin_diff = unique_pixel_counts[i+1]-unique_pixel_counts[i]
 			if bin_width > bin_diff: bin_width = bin_diff
-	
-		bins = np.arange(0,max(unique_diameters),bin_width)
 
-		plt.clf() # clear the figure of any plots that might have been on it
+		bins = np.arange(0,max(unique_pixel_counts),bin_width)
+
+		# Convert bins and particle_pixel_counts to diameters, not pixel counts
+		print(bins)
+		bins = np.array([particle_counting.count_to_diameter(count, self._pixelLength) for count in bins])
+		print(bins)
+		particle_diameters = [particle_counting.count_to_diameter(count, self._pixelLength) for count in particle_pixel_counts]
+
+		particle_count = len(particle_diameters)
+
+		plt.clf() # Clear whatever might have been in the figure
 		plt.hist(particle_diameters, bins=bins, rwidth=.1)
 		plt.title('Particle Diameter Distribution | Total Particles: %d' %particle_count)
 		plt.xlabel('Diameter (%s)' %self._pixelLengthUnit)
@@ -156,6 +164,9 @@ class Loupe(object):
 
 	def onThresholdConstantTrackbar(self, value):
 		self._thresholdConstant = value - 10
+
+	def exportSettings(self):
+		return self._blurKernelSize, self._thresholdBlockSize, self._thresholdConstant
 
 class WindowManager(object):
 	def __init__(self, windowName, 
