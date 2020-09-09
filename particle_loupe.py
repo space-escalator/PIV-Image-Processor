@@ -27,9 +27,12 @@ class Loupe(object):
 		self._thresholdConstant = -3
 
 		plt.figure() # initialize a figure for plotting histograms
-		plt.ion()
+		plt.ion() # turn on interactivity
 
 	def run(self):
+		"""
+		Main loop.
+		"""
 		self._windowManager.createWindow()
 		while self._windowManager.isWindowCreated:
 			img1 = self._img.copy()
@@ -38,6 +41,7 @@ class Loupe(object):
 				img1 = self.filterImage(img1)
 				
 				if self._statisticsObsolete and self._enableStatistics:
+					# This is slow
 					self.runStatistics(img1)
 			
 			img2 = self.magnify(img1, self._magX, self._magY)
@@ -99,6 +103,15 @@ class Loupe(object):
 			pass # just refresh
 
 	def filterImage(self, img):
+		"""
+		Apply a Gaussian Blur to the image, then threshold it using a Gaussian
+		adaptive threshold. 3 Important vairiables for the blur and thresholding
+		are passed in. The output image has only pixel values of 0 and 255.
+		Pretty much identical to particle_batch_processor.filterImage(), but uses 
+		the Loupe object's local variables.
+
+		TODO: just use particle_batch_processor.filterImage()
+		"""
 		img2 = img.copy()
 		img2 = cv2.GaussianBlur(img2, (self._blurKernelSize,self._blurKernelSize), 0)
 		img2 = cv2.adaptiveThreshold(img2, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, \
@@ -109,6 +122,10 @@ class Loupe(object):
 		"""
 		Run particle counting statistics on an image that is
 		already thresholded.
+
+		TODO: Separate statistics math and plotting into separate functions
+		TODO: Just use the stuff from particle_batch_processor.py to avoid
+		duplicated code.
 		"""
 		label_array, particle_count = ndimage.label(thresholded_img)
 		particle_images = particle_counting.isolate_particles(thresholded_img, label_array, particle_count)
@@ -123,9 +140,7 @@ class Loupe(object):
 		bins = np.arange(0,max(unique_pixel_counts),bin_width)
 
 		# Convert bins and particle_pixel_counts to diameters, not pixel counts
-		print(bins)
 		bins = np.array([particle_counting.count_to_diameter(count, self._pixelLength) for count in bins])
-		print(bins)
 		particle_diameters = [particle_counting.count_to_diameter(count, self._pixelLength) for count in particle_pixel_counts]
 
 		particle_count = len(particle_diameters)
@@ -143,7 +158,15 @@ class Loupe(object):
 		self._statisticsObsolete = False
 
 	def magnify(self, img, magX, magY):
-		imgHeight = self._img.shape[0]
+		"""
+		Take an image and magnify a self._magHeight*self._magHeight square
+		beginning at magX, magY.
+		Returns the magnified sub-image at vertical resolution of the original
+		image. Uses nearest-neighbor interpolation to avoid blurring. For this reason,
+		self._magHeight must be a factor of the vertical resolution of the 
+		original image.
+		"""
+		imgHeight = self._img.shape[0] # Not sure why this uses self._img not just img
 		while imgHeight % self._magHeight != 0:
 			self._magHeight -= 1
 
@@ -152,6 +175,7 @@ class Loupe(object):
 			interpolation = cv2.INTER_NEAREST)
 		return magnified
 
+	# Trackbar math and actions. Convert trackbar values to variable values.
 	def onBlurTrackbar(self, value):
 		self._blurKernelSize = 2 * value + 1
 		self._statisticsObsolete = True
@@ -189,8 +213,8 @@ class WindowManager(object):
 		return self._isWindowCreated
 	def createWindow(self):
 		cv2.namedWindow(self._windowName)
-		cv2.createTrackbar('Blur Kernel Size', self._windowName, 1, 4, self.blurCallback)
 		cv2.createTrackbar('Histogram (OFF/ON)', self._windowName, 1, 1, self.statisticsCallback)
+		cv2.createTrackbar('Blur Kernel Size', self._windowName, 1, 4, self.blurCallback)
 		cv2.createTrackbar('Threshold Block Size', self._windowName, 3, 10, self.thresholdBlockCallback)
 		cv2.createTrackbar('Threshold Constant', self._windowName, 7, 20, self.thresholdConstantCallback)
 		self._isWindowCreated = True

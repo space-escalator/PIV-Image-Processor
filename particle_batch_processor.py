@@ -8,6 +8,11 @@ import os
 from matplotlib import pyplot as plt
 
 def filterImage(img, blurKernelSize, thresholdBlockSize, thresholdConstant):
+	"""
+	Apply a Gaussian Blur to the image, then threshold it using a Gaussian
+	adaptive threshold. 3 Important vairiables for the blur and thresholding
+	are passed in. The output image has only pixel values of 0 and 255.
+	"""
 	img2 = img.copy()
 	img2 = cv2.GaussianBlur(img2, (blurKernelSize, blurKernelSize), 0)
 	img2 = cv2.adaptiveThreshold(img2, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, \
@@ -26,15 +31,18 @@ def getParticleDiameters(thresholded_img, pixelLength):
 	return particle_pixel_counts
 
 def uniq(lst):
-    last = object()
-    for item in lst:
-        if item == last:
-            continue
-        yield item
-        last = item
+	"""
+	required function for sort_and_duplicate()
+	"""
+	last = object()
+	for item in lst:
+		if item == last:
+			continue
+		yield item
+		last = item
 
 def sort_and_deduplicate(l):
-    return list(uniq(sorted(l)))
+	return list(uniq(sorted(l)))
 
 def runStatistics(particle_pixel_counts, pixel_width, length_unit):
 	"""
@@ -50,9 +58,7 @@ def runStatistics(particle_pixel_counts, pixel_width, length_unit):
 	bins = np.arange(0,max(unique_pixel_counts),bin_width)
 
 	# Convert bins and particle_pixel_counts to diameters, not pixel counts
-	print(bins)
 	bins = np.array([particle_counting.count_to_diameter(count, pixel_width) for count in bins])
-	print(bins)
 	particle_diameters = [particle_counting.count_to_diameter(count, pixel_width) for count in particle_pixel_counts]
 
 	particle_count = len(particle_diameters)
@@ -82,6 +88,7 @@ if __name__ == '__main__':
 	
 	# Run particle_loupe to get desired settings for the batch.
 	# Note, this uses the first file, alphabetically.
+	# TODO: Make this smarter and optional.
 	testImg, pixelLength = particle_counting.load_and_grayscale_data(directory+filenames[0])
 	pixelLength *= 1000 #convert from mm to um
 	testLoupe = particle_loupe.Loupe(testImg, pixelLength, length_unit)
@@ -100,4 +107,4 @@ if __name__ == '__main__':
 
 	runStatistics(particle_pixel_counts_big_list, pixelLength, length_unit)
 
-	# Remember to use block=True on imshow
+	# Remember to use block=True on plt.show()
