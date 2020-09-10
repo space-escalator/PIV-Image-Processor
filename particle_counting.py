@@ -10,6 +10,8 @@ from scipy import ndimage
 import numpy as np
 from matplotlib import pyplot as plt
 
+import sys
+
 __author__ = "Aaron Goldfogel"
 __email__ = "aaron@goldfogel.space"
 
@@ -106,33 +108,47 @@ def display_thresholding(img):
 	plt.xticks([]),plt.yticks([])
 
 def isolate_particles(img, label_array, particle_count):
+	"""
+	This function is terrible and you shouldn't use it unless you really need
+	tiny images of each particle.
+	"""
 	# img is already thresholded
-
+	# label_array has the same dimensions as img, but the values
+	# are the labels for the identified particles.
+	total = 0
 	particle_images = []
 
-	for i in range(1,particle_count+1):
-		coords = np.where(label_array == i)
+	if particle_count > 0:
+		for i in range(1,particle_count+1):
 
-		# Define cropping window
-		min_y = min(coords[0])
-		max_y = max(coords[0])
-		min_x = min(coords[1])
-		max_x = max(coords[1])
+			coords = np.where(label_array == i)
+			
+			# Define cropping window
+			min_y = min(coords[0])
+			max_y = max(coords[0])
+			min_x = min(coords[1])
+			max_x = max(coords[1])
 
-		# Create a copy of img that doesn't include other particles in the cropping window
-		masked_img = np.copy(img)
-		for j in range(min_y,max_y+1):
-			for k in range(min_x,max_x+1):
-				if label_array[j,k] != i and label_array[j,k] != 0:
-					masked_img[j,k] = 0
+			del coords
 
-		cropped_img = masked_img[min_y:max_y+1, min_x:max_x+1]
+			# Create a copy of img that doesn't include other particles in the cropping window
+			masked_img = np.copy(img)
+			for j in range(min_y,max_y+1):
+				for k in range(min_x,max_x+1):
+					if label_array[j,k] != i and label_array[j,k] != 0:
+						masked_img[j,k] = 0
 
-		if count_pixels(cropped_img) == 0:
-			print(((min_x, min_y), (max_x, max_y)))
+			# Crop the image
+			cropped_img = masked_img[min_y:max_y+1, min_x:max_x+1]
+			del masked_img
 
-		particle_images.append(cropped_img)
+			if count_pixels(cropped_img) == 0:
+				print(((min_x, min_y), (max_x, max_y)))
 
+			particle_images.append(cropped_img)
+			total += cropped_img.nbytes
+
+	print('size of all cropped_img: %d' %total)
 	return particle_images
 
 def count_pixels(img):
@@ -144,6 +160,18 @@ def count_pixels(img):
 				count += 1
 
 	return count
+
+def count_unique_occurrances(label_array):
+	"""
+	input: a numpy array that contains only positive integers.
+	output: a list of the number occurrances of each non-zero integer.
+	"""
+	occurrances_of_each_value = []
+	maximum = label_array.max()
+	for i in range(1, maximum+1):
+		occurrances_of_each_value.append(np.count_nonzero(label_array == i))
+
+	return occurrances_of_each_value
 
 def find_external_corners(img):
 	# Given a binarized image, return a list of coordinates of all the exterior corner coordinates

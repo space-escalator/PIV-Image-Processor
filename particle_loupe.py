@@ -128,8 +128,7 @@ class Loupe(object):
 		duplicated code.
 		"""
 		label_array, particle_count = ndimage.label(thresholded_img)
-		particle_images = particle_counting.isolate_particles(thresholded_img, label_array, particle_count)
-		particle_pixel_counts = [particle_counting.count_pixels(i) for i in particle_images]
+		particle_pixel_counts = particle_counting.count_unique_occurrances(label_array)
 
 		unique_pixel_counts = sort_and_deduplicate(particle_pixel_counts)
 		bin_width = max(unique_pixel_counts)

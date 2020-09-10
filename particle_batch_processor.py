@@ -5,6 +5,8 @@ import particle_counting
 import particle_loupe
 import os
 
+from tqdm import tqdm
+
 from matplotlib import pyplot as plt
 
 def filterImage(img, blurKernelSize, thresholdBlockSize, thresholdConstant):
@@ -19,14 +21,13 @@ def filterImage(img, blurKernelSize, thresholdBlockSize, thresholdConstant):
 		cv2.THRESH_BINARY, thresholdBlockSize, thresholdConstant)
 	return img2
 
-def getParticleDiameters(thresholded_img, pixelLength):
+def getParticlePixelCounts(thresholded_img, pixelLength):
 	"""
-	Returns an unsorted list of the estimated diameters of the
-	particles in an image that has already been thresholded.
+	Returns an unsorted list of the number of pixels in each particle
+	in an image that has already been thresholded.
 	"""
 	label_array, particle_count = ndimage.label(thresholded_img)
-	particle_images = particle_counting.isolate_particles(thresholded_img, label_array, particle_count)
-	particle_pixel_counts = [particle_counting.count_pixels(i) for i in particle_images]
+	particle_pixel_counts = particle_counting.count_unique_occurrances(label_array)
 
 	return particle_pixel_counts
 
@@ -99,12 +100,20 @@ if __name__ == '__main__':
 	# Load, filter, and take statistics on all of the images in the batch.
 	# original_images is a tuple of the numpy image and its pixelLength,
 	# which is needed for getParticleDiameters.
-	original_images = [particle_counting.load_and_grayscale_data(directory+filename) for filename in filenames]
+	print('Loading image files:')
+	original_images = []
+	for i in tqdm(range(len(filenames))):
+		original_images.append(particle_counting.load_and_grayscale_data(directory+filenames[i]))
+	# original_images = [particle_counting.load_and_grayscale_data(directory+filename) for filename in filenames]
+	print('Filtering and thresholding images...')
 	filtered_images = [filterImage(img[0], settings[0], settings[1], settings[2]) for img in original_images]
+	
 	particle_pixel_counts_big_list = []
-	for i in range(len(filtered_images)):
-		particle_pixel_counts_big_list.extend(getParticleDiameters(filtered_images[i], original_images[i][1]))
+	print('Counting particles in each image:')
+	for i in tqdm(range(len(filtered_images))):
+		particle_pixel_counts_big_list.extend(getParticlePixelCounts(filtered_images[i], original_images[i][1]))
 
+	print('Running statistics...')
 	runStatistics(particle_pixel_counts_big_list, pixelLength, length_unit)
 
 	# Remember to use block=True on plt.show()
