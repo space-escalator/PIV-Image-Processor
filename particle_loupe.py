@@ -22,7 +22,7 @@ class Loupe(object):
 		self._pixelLength = pixelLength
 		self._pixelLengthUnit = pixelLengthUnit
 		self._blurKernelSize = 3
-		self._enableStatistics = True
+		self._enableStatistics = False
 		self._thresholdBlockSize = 7
 		self._thresholdConstant = -3
 
@@ -212,7 +212,7 @@ class WindowManager(object):
 		return self._isWindowCreated
 	def createWindow(self):
 		cv2.namedWindow(self._windowName)
-		cv2.createTrackbar('Histogram (OFF/ON)', self._windowName, 1, 1, self.statisticsCallback)
+		cv2.createTrackbar('Histogram (OFF/ON)', self._windowName, 0, 1, self.statisticsCallback)
 		cv2.createTrackbar('Blur Kernel Size', self._windowName, 1, 4, self.blurCallback)
 		cv2.createTrackbar('Threshold Block Size', self._windowName, 3, 10, self.thresholdBlockCallback)
 		cv2.createTrackbar('Threshold Constant', self._windowName, 7, 20, self.thresholdConstantCallback)

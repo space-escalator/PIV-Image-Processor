@@ -45,7 +45,7 @@ def uniq(lst):
 def sort_and_deduplicate(l):
 	return list(uniq(sorted(l)))
 
-def runStatistics(particle_pixel_counts, pixel_width, length_unit):
+def runStatistics(particle_pixel_counts, pixel_width, length_unit, data_write_path = None, plot_write_path = None):
 	"""
 	Prints and plots statistics on an unsorted list of
 	pixel counts in each particle.
@@ -64,7 +64,7 @@ def runStatistics(particle_pixel_counts, pixel_width, length_unit):
 
 	particle_count = len(particle_diameters)
 
-	plt.figure()
+	plt.clf()
 	plt.hist(particle_diameters, bins=bins, rwidth=.1)
 	plt.title('Particle Diameter Distribution | Total Particles: %d' %particle_count)
 	plt.xlabel('Diameter (%s)' %length_unit)
@@ -73,47 +73,76 @@ def runStatistics(particle_pixel_counts, pixel_width, length_unit):
 	plt.yticks(locs, labels)
 	plt.ylabel('Normalized Particle Count')
 
-	plt.show(block=True)
+	if data_write_path is not None:
+		raw_data_array = np.transpose(np.asarray([range(particle_count), particle_pixel_counts, particle_diameters]))
+		np.savetxt(data_write_path, raw_data_array, delimiter=",")
+
+	if plot_write_path is not None:
+		plt.savefig(plot_write_path)
+
+	if data_write_path is None and plot_write_path is None:
+		plt.show(block=True)
 
 if __name__ == '__main__':
-	directory = 'batch_images/'
+	directories = [
+		'batch_images',
+		'batch_images2'
+	]
 	length_unit = 'um'
-	filenames = os.listdir(directory)
 
-	# Get rid of hidden files like .DS_Store
-	i = len(filenames)-1
-	while i >= 0:
-		if filenames[i][0] == '.':
-			del filenames[i]
-		i-=1
-	
-	# Run particle_loupe to get desired settings for the batch.
-	# Note, this uses the first file, alphabetically.
-	# TODO: Make this smarter and optional.
-	testImg, pixelLength = particle_counting.load_and_grayscale_data(directory+filenames[0])
-	pixelLength *= 1000 #convert from mm to um
-	testLoupe = particle_loupe.Loupe(testImg, pixelLength, length_unit)
-	testLoupe.run()
+	settings = [] # This will be a list of the same length as directories, full of settings tuples
 
-	settings = testLoupe.exportSettings()
+	for directory in directories:
+		filenames = os.listdir(directory)
 
-	# Load, filter, and take statistics on all of the images in the batch.
-	# original_images is a tuple of the numpy image and its pixelLength,
-	# which is needed for getParticleDiameters.
-	print('Loading image files:')
-	original_images = []
-	for i in tqdm(range(len(filenames))):
-		original_images.append(particle_counting.load_and_grayscale_data(directory+filenames[i]))
-	# original_images = [particle_counting.load_and_grayscale_data(directory+filename) for filename in filenames]
-	print('Filtering and thresholding images...')
-	filtered_images = [filterImage(img[0], settings[0], settings[1], settings[2]) for img in original_images]
-	
-	particle_pixel_counts_big_list = []
-	print('Counting particles in each image:')
-	for i in tqdm(range(len(filtered_images))):
-		particle_pixel_counts_big_list.extend(getParticlePixelCounts(filtered_images[i], original_images[i][1]))
+		# Get rid of hidden files like .DS_Store
+		i = len(filenames)-1
+		while i >= 0:
+			if filenames[i][0] == '.':
+				del filenames[i]
+			i-=1
+		
+		# Run particle_loupe to get desired settings for the batch.
+		# Note, this uses the first file, alphabetically.
+		# TODO: Make this smarter and optional.
+		print('\"' + directory + '\"')
 
-	print('Running statistics...')
-	runStatistics(particle_pixel_counts_big_list, pixelLength, length_unit)
+		need_another_image = 'Y'
+		i = 0
+		while need_another_image != 'N' and need_another_image != 'n':
+			testImg, pixelLength = particle_counting.load_and_grayscale_data(directory + '/' + filenames[i])
+			pixelLength *= 1000 #convert from mm to um
+			testLoupe = particle_loupe.Loupe(testImg, pixelLength, length_unit)
+			testLoupe.run()
+
+			settings.append(testLoupe.exportSettings())
+			i += 1
+			need_another_image = input('Do you need a different image? (y/n)  ')
+		del i
+
+	for directory_index in range(len(directories)):
+		directory = directories[directory_index]
+		setting = settings[directory_index]
+		print('\"' + directory + '\"')
+		# Load, filter, and take statistics on all of the images in the batch.
+		# original_images is a tuple of the numpy image and its pixelLength,
+		# which is needed for getParticleDiameters.
+		print('Loading image files:')
+		original_images = []
+		for i in tqdm(range(len(filenames))):
+			original_images.append(particle_counting.load_and_grayscale_data(directory + '/' + filenames[i]))
+		# original_images = [particle_counting.load_and_grayscale_data(directory+filename) for filename in filenames]
+		print('Filtering and thresholding images...')
+		filtered_images = [filterImage(img[0], setting[0], setting[1], setting[2]) for img in original_images]
+		
+		particle_pixel_counts_big_list = []
+		print('Counting particles in each image:')
+		for i in tqdm(range(len(filtered_images))):
+			particle_pixel_counts_big_list.extend(getParticlePixelCounts(filtered_images[i], original_images[i][1]))
+
+		print('Running statistics...')
+		runStatistics(particle_pixel_counts_big_list, pixelLength, length_unit, 
+			'raw_data/' + directory + '.csv',
+			'histograms/' + directory + '.png')
 
 	# Remember to use block=True on plt.show()
